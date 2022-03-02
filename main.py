@@ -68,39 +68,29 @@ def image_resize(image, width = None, height = None, inter = cv2.INTER_AREA):
     return resized
 
 def main():
-    if(len(sys.argv) != 2):
+    if(len(sys.argv) < 2):
         return
-    images = convert_from_path('blueprints/'+sys.argv[1]+'.pdf')
-    for i in range(len(images)):
-        # Save pages as images in the pdf
-        images[i].save('page'+ str(i) +'.jpg', 'JPEG')
-        current_page = images[i]
-    img =  cv2.imread('./blueprint_images/' + sys.argv[1] + '.jpg', -1)
+    img = None
+    if(sys.argv[2] != '-c'):
+        #print('here')
+        img =  cv2.imread('./cropped_images/' + sys.argv[2] + '.jpeg', -1)
+    else:
+        img =  cv2.imread('./blueprint_images/' + sys.argv[1] + '.jpg', -1)
+    # images = convert_from_path('blueprints/'+sys.argv[1]+'.pdf')
+    # for i in range(len(images)):
+    #     # Save pages as images in the pdf
+    #     images[i].save('page'+ str(i) +'.jpg', 'JPEG')
+    #     current_page = images[i]
+    
     width = img.shape[1]/2
     height = img.shape[0]/2
     #img = cv2.resize(img,(720,1024))
     img = image_resize(img, height=1024)
     print(img.shape)
-    img = img[30:-30, 30:-30]
+    #img = img[30:-30, 30:-30]
     cv2.imshow("image",img)
     cv2.waitKey(0)
-    # It converts the BGR color space of image to HSV color space
-    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-     
-    # Threshold of blue in HSV space
-    lower_blue = np.array([100, 100, 160])
-    upper_blue = np.array([180, 255, 255])
- 
-    # preparing the mask to overlay
-    mask = cv2.inRange(hsv, lower_blue, upper_blue)
-     
-    # The black region in the mask has the value of 0,
-    # so when multiplied with original image removes all non-blue regions
-    result = cv2.bitwise_not(img, hsv, mask = mask)
-    cv2.imshow("image",result)
-    cv2.waitKey(0)
-    cv2.imshow("image", mask)
-    cv2.waitKey(0)
+    
     #Color squares
     img=cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
     kernel = np.ones((2,2),np.uint8)
