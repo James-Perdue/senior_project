@@ -71,9 +71,9 @@ def main():
     if(len(sys.argv) < 2):
         return
     img = None
-    if(sys.argv[2] != '-c'):
+    if(sys.argv[1] == '-c'):
         #print('here')
-        img =  cv2.imread('./cropped_images/' + sys.argv[2] + '.jpeg', -1)
+        img =  cv2.imread('./cropped_images/' + sys.argv[2] + '.jpg', -1)
     else:
         img =  cv2.imread('./blueprint_images/' + sys.argv[1] + '.jpg', -1)
     # images = convert_from_path('blueprints/'+sys.argv[1]+'.pdf')
@@ -95,39 +95,66 @@ def main():
     img=cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
     kernel = np.ones((2,2),np.uint8)
     
-    d = cv2.dilate(img, kernel, iterations = 4)
-    cv2.imshow("image",img)
-    cv2.waitKey(0)
-    e = cv2.erode(img, kernel, iterations = 3)  
-    cv2.imshow("image",e)
-    cv2.waitKey(0)
-    edges = cv2.Canny(e, 100, 200)
+    d = cv2.dilate(img, kernel, iterations = 2)
+    # cv2.imshow("image",d)
+    # cv2.waitKey(0)
+    e = cv2.erode(img, kernel, iterations = 2)  
+    # cv2.imshow("image",e)
+    # cv2.waitKey(0)
+    edges = cv2.Canny(img, 100, 100)
     cv2.imshow("image",edges)
     cv2.waitKey(0)
     
     #ret, th = cv2.threshold(img, 220, 255, cv2.THRESH_BINARY_INV)
     blank_image = create_blank(img.shape[1], img.shape[0], (255,255,255))
-    lines = cv2.HoughLinesP(edges, 1, np.pi/180, 100, maxLineGap=30,minLineLength=120)
-    lines_drawn = []
+    lines = cv2.HoughLinesP(edges, 1, np.pi/360, 115, maxLineGap=30, minLineLength=10)
+    #lines_drawn = []
+    horizontal_lines = []
+    vertical_lines = []
+    line_threshold = 10
+    max_x = -999
+    min_x = 999
+    max_y = -999
+    min_y = 999
+    extra_length = 5
     for line in lines:
         #print(line)
         x1,y1,x2,y2 = line[0]
-        #print(line[0])
-        if(x1 == x2 or y1 == y2):
-            # for line_draw in lines_drawn:
-            #     #print(line_draw)
-            #     x3,y3,x4,y4 = line_draw
-            #     line_tolerance = 0
-            #     if((abs(x1-x3) < line_tolerance and abs(x2-x4) < line_tolerance or abs(y1-y3) < line_tolerance and abs(y2-y4) < line_tolerance) and line_length(line[0]) > line_length(line_draw)):
-
-            #         lines_drawn.remove(line_draw)
-            #         lines_drawn.append([x1,y1,x2,y2])
-            #print(lines_drawn)
-            lines_drawn.append([x1,y1,x2,y2])
-
-    for line in lines_drawn:
+        if(y1 == y2):
+            max_x = max(x1, x2, max_x)
+            min_x = min(x1, x2, min_x)
+            
+            max_y = max(y1, y2, max_y)
+            min_y = min(y1, y2, min_y)
+            horizontal_lines.append([x1-extra_length, y1, x2+extra_length, y2])
+        if(x1 == x2):
+            max_x = max(x1, x2, max_x)
+            min_x = min(x1, x2, min_x)
+            
+            max_y = max(y1, y2, max_y)
+            min_y = min(y1, y2, min_y)
+            vertical_lines.append([x1, y1+extra_length, x2, y2-extra_length])
+        
+    print(max_x, min_x, max_y, min_y)
+    #try check for 2 intersection
+    for line in horizontal_lines:
         x1,y1,x2,y2 = line
-        cv2.line(blank_image,(x1,y1),(x2,y2),(0,0,0),3)
+        intersects = False
+        for v_line in vertical_lines:
+            x3,y3,x4,y4 = v_line
+            if(x1 < x3 and x2 > x3 and y1 <= y3 and y1 >= y4):
+                intersects = True
+        if(intersects):
+            cv2.line(blank_image,(x1,y1),(x2,y2),(0,0,0),3) 
+    for line in vertical_lines:
+        x1,y1,x2,y2 = line
+        intersects = False
+        for h_line in horizontal_lines:
+            x3,y3,x4,y4 = h_line
+            if(y1 > y3 and y2 < y3 and x1 >= x3 and x1 <= x4):
+                intersects = True
+        if(intersects):
+            cv2.line(blank_image,(x1,y1),(x2,y2),(0,0,0),3) 
                 
     cv2.imshow("image",blank_image)
     cv2.waitKey(0)
