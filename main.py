@@ -3,6 +3,7 @@ import cv2
 import numpy as np
 import math
 import sys
+from shapely.geometry import LineString
 #Base way to manipulate pdf
 # pdfFileObj = open('blueprints/2bedhouse1.pdf', 'rb')
 
@@ -93,6 +94,7 @@ def main():
     
     #Color squares
     img=cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
+    gray = img
     kernel = np.ones((2,2),np.uint8)
     
     d = cv2.dilate(img, kernel, iterations = 2)
@@ -111,32 +113,23 @@ def main():
     #lines_drawn = []
     horizontal_lines = []
     vertical_lines = []
-    line_threshold = 10
-    max_x = -999
-    min_x = 999
-    max_y = -999
-    min_y = 999
+    endpoints = []
+    intersections = []
     extra_length = 5
+
     for line in lines:
         #print(line)
         x1,y1,x2,y2 = line[0]
         if(y1 == y2):
-            max_x = max(x1, x2, max_x)
-            min_x = min(x1, x2, min_x)
-            
-            max_y = max(y1, y2, max_y)
-            min_y = min(y1, y2, min_y)
             horizontal_lines.append([x1-extra_length, y1, x2+extra_length, y2])
+            endpoints.append([x1,y1])
+            endpoints.append([x2,y2])
         if(x1 == x2):
-            max_x = max(x1, x2, max_x)
-            min_x = min(x1, x2, min_x)
-            
-            max_y = max(y1, y2, max_y)
-            min_y = min(y1, y2, min_y)
             vertical_lines.append([x1, y1+extra_length, x2, y2-extra_length])
-        
-    print(max_x, min_x, max_y, min_y)
+            endpoints.append([x1,y1])
+            endpoints.append([x2,y2])
     #try check for 2 intersection
+
     for line in horizontal_lines:
         x1,y1,x2,y2 = line
         intersects = False
@@ -144,6 +137,10 @@ def main():
             x3,y3,x4,y4 = v_line
             if(x1 < x3 and x2 > x3 and y1 <= y3 and y1 >= y4):
                 intersects = True
+                # line1 = LineString((x1,y1), (x2,y2))
+                # line2 = LineString((x3,y3), (x4, y4))
+
+                # intersections.append(line1.intersection(line2))
         if(intersects):
             cv2.line(blank_image,(x1,y1),(x2,y2),(0,0,0),3) 
     for line in vertical_lines:
@@ -153,10 +150,45 @@ def main():
             x3,y3,x4,y4 = h_line
             if(y1 > y3 and y2 < y3 and x1 >= x3 and x1 <= x4):
                 intersects = True
+                # line1 = LineString((x1,y1), (x2,y2))
+                # line2 = LineString((x3,y3), (x4, y4))
+
+                # intersections.append(line1.intersection(line2))
         if(intersects):
             cv2.line(blank_image,(x1,y1),(x2,y2),(0,0,0),3) 
-                
-    cv2.imshow("image",blank_image)
+    lines_image = blank_image       
+    print(intersections)
+    endpoint_image = create_blank(img.shape[1], img.shape[0], (255,255,255))
+    for endpoint in endpoints:
+        x, y = endpoint
+        cv2.circle(endpoint_image, (x,y), radius=2, color=(0, 0, 0), thickness=-1)
+    cv2.imshow("image", blank_image)
+    cv2.waitKey(0)
+    cv2.imshow("image", endpoint_image)
+    cv2.waitKey(0)
+
+    gray = cv2.cvtColor(lines_image, cv2.COLOR_BGR2GRAY)
+    blur = cv2.blur(gray, (3, 3)) # blur the image
+    ret, thresh = cv2.threshold(blur, 50, 255, cv2.THRESH_BINARY)
+    edges_hull = cv2.Canny(gray, 100, 100)
+
+    convex_hull_image = create_blank(img.shape[1], img.shape[0], (255,255,255))
+    contours, hierarchy = cv2.findContours(edges_hull, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
+    
+    #sort countours by perimeter
+    contours = sorted(contours, key=lambda x: cv2.arcLength(x, True), reverse=True)
+    limit = 0
+    for contour in contours:
+        # if(limit > 1):
+        #     break
+        convexHull = cv2.convexHull(contour)
+        cv2.drawContours(convex_hull_image, [convexHull], -1, (255, 0, 0), 2)
+        limit += 1
+
+    # Display the final convex hull image
+    cv2.imshow('ConvexHull', edges_hull)
+    cv2.waitKey(0)
+    cv2.imshow('ConvexHull', convex_hull_image)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
     lines_image = blank_image
