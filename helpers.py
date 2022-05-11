@@ -4,6 +4,13 @@ import numpy as np
 import math
 import sys
 from shapely.geometry import LineString
+from PyQt5.QtWidgets import QApplication
+def getDPI():
+    app = QApplication(sys.argv)
+    screen = app.screens()[0]
+    dpi = screen.physicalDotsPerInch()
+    app.quit()
+    return dpi
 
 def create_blank(width, height, rgb_color=(0, 0, 0)):
     """Create new image(numpy array) filled with certain color in RGB"""
@@ -75,3 +82,10 @@ def line_intersection(line1, line2):
     x = det(d, xdiff) / div
     y = det(d, ydiff) / div
     return [math.floor(x), math.floor(y)]
+
+def getRectCenters(rects):
+    centers = []
+    for rect in rects:
+        x1, y1, x2, y2 = rect
+        centers.append([(x1 + x2) // 2, (y1 + y2) // 2])
+    return centers
