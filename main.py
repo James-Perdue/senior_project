@@ -12,6 +12,44 @@ from core_functions import *
 def callback(x):
     pass
 
+def gatherInput(src):
+    window_name = "Rooms Selection"
+    room_titles = []
+    #Mouse event
+    def selectLabels(event, x, y, flags, param):
+        if event == cv2.EVENT_LBUTTONDOWN:
+            if [x,y] not in room_titles:
+                room_titles.append([x,y])
+    #Open window with possible labels in bounding boxes
+    cv2.namedWindow(window_name, WINDOW_AUTOSIZE | WINDOW_GUI_NORMAL)
+    while True:
+        cv2.imshow(window_name, src)
+        cv2.setMouseCallback(window_name, selectLabels)
+        #When c is pressed, continue
+        key = cv2.waitKey(1) & 0xFF
+        if key == ord('d'):
+            break
+    return room_titles
+
+def showRoomResult(src, lines_image, dpi, colors):
+    titles = gatherInput(src)
+    while True:
+        #Paint selected squares on image
+        filled_rooms_image = fillRooms(lines_image, titles, colors)
+        #Get number of red pixels
+        totalArea = 0
+        for color in colors:
+            totalArea += getArea(filled_rooms_image, color[0], color[1], color[2])
+
+        overlay = mergeImages(src, filled_rooms_image, 0.3)
+        cv2.imshow('Rooms Selection', overlay)
+        key = cv2.waitKey(1) & 0xFF
+        if key == ord('q'):
+            break
+        elif key == ord('a'):
+            titles = gatherInput(src)
+    return totalArea
+
 def main():
     uni_img = easygui.fileopenbox()
     # scale_factor = "test"
@@ -30,62 +68,37 @@ def main():
     intersections_image = paintPoints(edges, intersections)
 
     contour_image = getContours(lines_image)
-
-    window_name = "Takeoff Software: "
-    cv2.namedWindow(window_name, WINDOW_AUTOSIZE | WINDOW_GUI_NORMAL)
-    cv2.createTrackbar("Image", window_name, 0, 5, callback)
-    while True:
-        # get Trackbar position
-        pos = cv2.getTrackbarPos("Image", window_name)
-        if pos == 0:
-            cv2.imshow(window_name, img)
-        elif pos == 1:
-            cv2.imshow(window_name, edges)
-        elif pos == 2:
-            cv2.imshow(window_name, lines_image)
-        elif pos == 3:
-            cv2.imshow(window_name, blue_gone)
-        elif pos == 4:
-            cv2.imshow(window_name, endpoint_image)
-        elif pos == 5:
-            cv2.imshow(window_name, contour_image)
-        key = cv2.waitKey(1) & 0xFF
-        # press 'q' to quit the window
-        if key == ord('q'):
-            break
+    print(len(sys.argv))
+    if(len(sys.argv) > 1 and sys.argv[1] == '-d'):
+        window_name = "Takeoff Software: "
+        cv2.namedWindow(window_name, WINDOW_AUTOSIZE | WINDOW_GUI_NORMAL)
+        cv2.createTrackbar("Image", window_name, 0, 5, callback)
+        while True:
+            # get Trackbar position
+            pos = cv2.getTrackbarPos("Image", window_name)
+            if pos == 0:
+                cv2.imshow(window_name, img)
+            elif pos == 1:
+                cv2.imshow(window_name, edges)
+            elif pos == 2:
+                cv2.imshow(window_name, lines_image)
+            elif pos == 3:
+                cv2.imshow(window_name, blue_gone)
+            elif pos == 4:
+                cv2.imshow(window_name, endpoint_image)
+            elif pos == 5:
+                cv2.imshow(window_name, contour_image)
+            key = cv2.waitKey(1) & 0xFF
+            # press 'q' to quit the window
+            if key == ord('q'):
+                break
+    easygui.msgbox('Click each room label to select, then hit d to continue. On result screen hit a to go back, or q to quit', 'Select Rooms', 'Continue')
+    #Room area colors, only as many options as in this list
+    colors = [[0,0,255], [255,0,0], [0,255,0], [125, 125, 0], [0, 125, 125]]
+    finalArea = showRoomResult(img, lines_image, dpi, colors)
+    totalInches = convertPixeltoInch(finalArea, dpi)
     
-    window_name = "Select Rooms then hit C to continue"
-    room_titles = []
-    #Mouse event
-    def selectLabels(event, x, y, flags, param):
-        if event == cv2.EVENT_LBUTTONDOWN:
-            if [x,y] not in room_titles:
-                room_titles.append([x,y])
-    #Open window with possible labels in bounding boxes
-    easygui.msgbox('Click each room label to select', 'Select Rooms', 'Continue')
-    cv2.namedWindow(window_name, WINDOW_AUTOSIZE | WINDOW_GUI_NORMAL)
-    while True:
-        cv2.imshow(window_name, img)
-        cv2.setMouseCallback(window_name, selectLabels)
-        #When c is pressed, continue
-        key = cv2.waitKey(1) & 0xFF
-        if key == ord('c'):
-            break
-    #Paint selected squares on image
-    filled_rooms_image = fillRooms(lines_image, room_titles)
-    totalArea = getArea(filled_rooms_image)
-    totalInches = convertPixeltoInch(totalArea, dpi)
-    print(totalArea)
-    print(totalInches)
-    #key = cv2.waitKey(1) & 0xFF
-    overlay = mergeImages(img, filled_rooms_image, 0.3)
-    while True:
-        #cv2.imshow(window_name, labels_selected_image)
-        cv2.imshow('test', overlay)
-        key = cv2.waitKey(1) & 0xFF
-        if key == ord('q'):
-            break
-    
+    print('The total number of pixels in the selected rooms is: '+ str(finalArea))
 
 if __name__ == "__main__":
     main()

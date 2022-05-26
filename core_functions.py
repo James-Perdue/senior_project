@@ -169,21 +169,28 @@ def getContours(src):
     cv2.drawContours(contourImg, contours, -1, (255, 0, 0), 2)
     return contourImg
 
-def fillRooms(src, centers):
+def fillRooms(src, centers, colors):
     result = src.copy()
-    #alternate room area colors
+    
+    color_index = 0
     for center in centers:
-        cv2.floodFill(result, None, seedPoint=center, newVal=(0,0, 255), loDiff=(5, 5, 5, 5), upDiff=(5, 5, 5, 5))
+        blue = colors[color_index][0]
+        green = colors[color_index][1]
+        red = colors[color_index][2]
+        cv2.floodFill(result, None, seedPoint=center, newVal=(blue, green, red), loDiff=(5, 5, 5, 5), upDiff=(5, 5, 5, 5))
+        if(color_index ==len(colors) -1):
+            color_index = 0
+        else:
+            color_index += 1
     return result
 
-def getArea(src):
-    RED_MIN = np.array([0, 0, 255], np.uint8)
-    # maximum value of red pixel in BGR order -> red
-    RED_MAX = np.array([0, 0, 255], np.uint8)
+def getArea(src, b, g, r):
+    COL_MIN = np.array([b, g, r], np.uint8)
+    # maximum value of pixels in BGR order -> given bgr params
+    COL_MAX = np.array([b, g, r], np.uint8)
 
-    dst = cv2.inRange(src, RED_MIN, RED_MAX)
+    dst = cv2.inRange(src, COL_MIN, COL_MAX)
     num_red = cv2.countNonZero(dst)
-    print('The number of red pixels is: ' + str(num_red))
 
     return(num_red)
     
@@ -192,10 +199,5 @@ def convertPixeltoInch(pixels, DPI):
     return (pixels / squareInch)
 
 def mergeImages(base, overlay, alpha):
-    RED_MIN = np.array([0, 0, 255], np.uint8)
-    # maximum value of red pixel in BGR order -> red
-    RED_MAX = np.array([0, 0, 255], np.uint8)
-
-    dst = cv2.inRange(overlay, RED_MIN, RED_MAX)
     res = cv2.addWeighted(base, .7, overlay, alpha, 0)
     return res
