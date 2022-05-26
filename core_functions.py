@@ -171,6 +171,7 @@ def getContours(src):
 
 def fillRooms(src, centers):
     result = src.copy()
+    #alternate room area colors
     for center in centers:
         cv2.floodFill(result, None, seedPoint=center, newVal=(0,0, 255), loDiff=(5, 5, 5, 5), upDiff=(5, 5, 5, 5))
     return result
@@ -188,5 +189,13 @@ def getArea(src):
     
 def convertPixeltoInch(pixels, DPI):
     squareInch = DPI**2
-    #2.5 is average pixel to area difference on my machine
-    return (pixels / squareInch) * 2.5
+    return (pixels / squareInch)
+
+def mergeImages(base, overlay, alpha):
+    RED_MIN = np.array([0, 0, 255], np.uint8)
+    # maximum value of red pixel in BGR order -> red
+    RED_MAX = np.array([0, 0, 255], np.uint8)
+
+    dst = cv2.inRange(overlay, RED_MIN, RED_MAX)
+    res = cv2.addWeighted(base, .7, overlay, alpha, 0)
+    return res
