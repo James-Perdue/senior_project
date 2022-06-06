@@ -1,10 +1,9 @@
 import cv2
-from cv2 import convexHull
 import numpy as np
 import math
-import sys
 from helpers import *
 
+#This method was scrapped as it was a hack to find labels by color of the text
 def getPossibleTitles(src):
     hsv=cv2.cvtColor(src,cv2.COLOR_BGR2HSV)
     # Threshold of blue in HSV space
@@ -13,7 +12,6 @@ def getPossibleTitles(src):
     
     # preparing the mask to overlay
     mask = cv2.inRange(hsv, lower_blue, upper_blue)
-    #result = cv2.bitwise_and(hsv, hsv, mask = mask)
     result = src.copy()
     # Dilate to combine adjacent text contours
     kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (9,9))
@@ -22,8 +20,6 @@ def getPossibleTitles(src):
     # Find contours, highlight text areas, and extract ROIs
     cnts = cv2.findContours(dilate, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     cnts = cnts[0] if len(cnts) == 2 else cnts[1]
-
-    ROI_number = 0
     rectangles = []
     for c in cnts:
         area = cv2.contourArea(c)
@@ -55,27 +51,24 @@ def getEdges(src, thresh1, thresh2):
 def findLines(src, maxLineGap, minLineLength, extraLength, thickness = 1, lineThreshold=150):
     blank_image = create_blank(src.shape[1], src.shape[0], (255,255,255))
     lines = cv2.HoughLinesP(src, 1, np.pi/360, lineThreshold, maxLineGap=maxLineGap, minLineLength=minLineLength)
-    
-    #lines_drawn = []
+
     horizontal_lines = []
     vertical_lines = []
     endpoints = []
     intersections = []
 
     for line in lines:
-        #print(line)
         x1,y1,x2,y2 = line[0]
-        #check for precision instead of ==
-        if(abs(y1 - y2) < .01):
+        #I check for precision instead of exact horizontal or vertical
+        if(abs(y1 - y2) < 3):
             horizontal_lines.append([x1-extraLength, y1, x2+extraLength, y2])
             endpoints.append([x1,y1])
             endpoints.append([x2,y2])
-        if(abs(x1 - x2) < .01):
+        if(abs(x1 - x2) < 3):
             vertical_lines.append([x1, y1+extraLength, x2, y2-extraLength])
             endpoints.append([x1,y1])
             endpoints.append([x2,y2])
-    #try check for 2 intersection
-    #Convert into one for loop
+            
     for line in horizontal_lines:
         x1,y1,x2,y2 = line
         intersects = False
@@ -92,57 +85,6 @@ def findLines(src, maxLineGap, minLineLength, extraLength, thickness = 1, lineTh
             cv2.line(blank_image,(x1,y1),(x2,y2),(0,0,0), thickness) 
     return blank_image, endpoints, intersections
 
-def findNonBlue(src, original, maxLineGap, minLineLength, extraLength, thickness = 1):
-    blank_image = create_blank(src.shape[1], src.shape[0], (255,255,255))
-    lines = cv2.HoughLinesP(src, 1, np.pi/360, 115, maxLineGap=maxLineGap, minLineLength=minLineLength)
-    
-    #lines_drawn = []
-    horizontal_lines = []
-    vertical_lines = []
-    endpoints = []
-    intersections = []
-
-    for line in lines:
-        #print(line)
-        x1,y1,x2,y2 = line[0]
-        #check for precision instead of ==
-        if(abs(y1 - y2) < .01):
-            horizontal_lines.append([x1-extraLength, y1, x2+extraLength, y2])
-            endpoints.append([x1,y1])
-            endpoints.append([x2,y2])
-        if(abs(x1 - x2) < .01):
-            vertical_lines.append([x1, y1+extraLength, x2, y2-extraLength])
-            endpoints.append([x1,y1])
-            endpoints.append([x2,y2])
-    #try check for 2 intersection
-    #Convert into one for loop
-    for line in horizontal_lines:
-        #print("line")
-        x1,y1,x2,y2 = line
-        intersects = False
-        blue = False
-        for i in range(x1,x2):
-            #print(original[y1, i][2])
-            if abs(original[y1, i][2] - 253) < 2:
-                blue += 1
-                #break
-        if(blue > 3):
-            #print("removing")
-            continue
-        #Check colors along line
-
-        for v_line in vertical_lines:
-            x3,y3,x4,y4 = v_line
-            if(x1 < x3 and x2 > x3 and y1 <= y3 and y1 >= y4):
-                intersects = True
-                intersection_point = line_intersection([[x1,y1], [x2,y2]], [[x3,y3], [x4,y4]])
-                if(intersection_point not in intersections):
-                    intersections.append(intersection_point)
-                cv2.line(blank_image,(x3,y3),(x4,y4),(0,0,0), thickness)
-        if(intersects):
-            cv2.line(blank_image,(x1,y1),(x2,y2),(0,0,0), thickness) 
-    return blank_image
-
 def paintPoints(src, points):
     point_image = create_blank(src.shape[1], src.shape[0], (255,255,255))
     for point in points:
@@ -155,7 +97,6 @@ def getConvex(src, points):
     convexHull = cv2.convexHull(np.array(points, dtype='float32'))
     adjustedHull = []
     for point in convexHull:
-        print(point[0][0])
         adjustedHull.append([math.floor(point[0][0]), math.floor(point[0][1])])
     cv2.drawContours(convex_hull_image, adjustedHull, -1, (255, 0, 0), 2)
     return convex_hull_image
@@ -194,9 +135,9 @@ def getArea(src, b, g, r):
 
     return(num_red)
     
-def convertPixeltoInch(pixels, DPI):
+def convertPixeltoSquareFeet(pixels, DPI, scaleFactor):
     squareInch = DPI**2
-    return (pixels / squareInch)
+    return (pixels / squareInch) / float(scaleFactor) ** 2
 
 def mergeImages(base, overlay, alpha):
     res = cv2.addWeighted(base, .7, overlay, alpha, 0)

@@ -1,9 +1,7 @@
-from pdf2image import convert_from_path
 import cv2
 import numpy as np
 import math
 import sys
-from shapely.geometry import LineString
 from PyQt5.QtWidgets import QApplication
 def getDPI():
     app = QApplication(sys.argv)
